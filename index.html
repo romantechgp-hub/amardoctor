@@ -1,0 +1,76 @@
+
+<!DOCTYPE html>
+<html lang="bn">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Amar Doctor</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Hind+Siliguri:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Hind Siliguri', sans-serif;
+            background-color: #f8fafc;
+        }
+        @media print {
+            .no-print { display: none !important; }
+            .print-only { display: block !important; }
+            @page { size: A4; margin: 0; }
+            body { margin: 1cm; background: white; }
+        }
+        .theme-blue { --primary: #2563eb; --primary-light: #dbeafe; }
+        .theme-green { --primary: #059669; --primary-light: #d1fae5; }
+        .theme-red { --primary: #dc2626; --primary-light: #fee2e2; }
+        .theme-purple { --primary: #7c3aed; --primary-light: #f3e8ff; }
+        .theme-teal { --primary: #0d9488; --primary-light: #ccfbf1; }
+        .theme-orange { --primary: #d97706; --primary-light: #fef3c7; }
+        .theme-indigo { --primary: #4f46e5; --primary-light: #e0e7ff; }
+        .theme-rose { --primary: #e11d48; --primary-light: #ffe4e6; }
+        .theme-amber { --primary: #b45309; --primary-light: #fef3c7; }
+        .theme-cyan { --primary: #0891b2; --primary-light: #cffafe; }
+
+        .glass {
+            background: rgba(255, 255, 255, 0.8);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+        }
+        .card-hover {
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .card-hover:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1);
+        }
+        input, select, textarea {
+            transition: all 0.2s ease-in-out;
+        }
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 5px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: #f1f1f1;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 10px;
+        }
+    </style>
+<script type="importmap">
+{
+  "imports": {
+    "react": "https://esm.sh/react@^19.2.4",
+    "react-dom/": "https://esm.sh/react-dom@^19.2.4/",
+    "react/": "https://esm.sh/react@^19.2.4/",
+    "@google/genai": "https://esm.sh/@google/genai@^1.39.0",
+    "react-router-dom": "https://esm.sh/react-router-dom@^7.13.0",
+    "lucide-react": "https://esm.sh/lucide-react@^0.563.0",
+    "jspdf": "https://esm.sh/jspdf@^2.5.1",
+    "html2canvas": "https://esm.sh/html2canvas@^1.4.1"
+  }
+}
+</script>
+</head>
+<body class="text-slate-900">
+    <div id="root"></div>
+</body>
+</html>

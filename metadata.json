@@ -1,0 +1,8 @@
+{
+  "name": "Amar Doctor - Smart Prescription App",
+  "description": "A comprehensive Bengali medical application for patients and administrators. Features AI-powered prescriptions, medicine searching (alternatives & prices), order management, and customizable themes.",
+  "requestFramePermissions": [
+    "camera",
+    "microphone"
+  ]
+}
