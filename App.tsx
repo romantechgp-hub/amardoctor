@@ -1,11 +1,11 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { HashRouter, Routes, Route, Navigate } from 'react-router-dom';
 import Login from './components/Login';
 import UserPanel from './components/UserPanel';
 import AdminPanel from './components/AdminPanel';
 import { User, AppConfig, Medicine, Order, Message, AppNotification } from './types';
-import { Bell, X } from 'lucide-react';
+import { Bell, X, RefreshCw, AlertCircle } from 'lucide-react';
 
 const INITIAL_CONFIG: AppConfig = {
   homeHeader: 'আমার ডাক্তার ডিজিটাল স্বাস্থ্য সেবা',
@@ -27,57 +27,60 @@ const INITIAL_CONFIG: AppConfig = {
   }
 };
 
+const ErrorFallback = () => (
+  <div className="min-h-screen flex items-center justify-center bg-slate-50 p-6">
+    <div className="max-w-md w-full bg-white p-8 rounded-[40px] shadow-2xl text-center">
+      <div className="w-20 h-20 bg-rose-50 text-rose-500 rounded-full flex items-center justify-center mx-auto mb-6">
+        <AlertCircle size={40} />
+      </div>
+      <h2 className="text-2xl font-black text-slate-800 mb-2">অ্যাপটি লোড হতে সমস্যা হচ্ছে</h2>
+      <p className="text-slate-500 font-bold mb-6">আপনার ব্রাউজারের ক্যাশ (Cache) ক্লিয়ার করে আবার চেষ্টা করুন।</p>
+      <button onClick={() => window.location.reload()} className="bg-blue-600 text-white px-8 py-4 rounded-2xl font-black shadow-xl">আবার লোড দিন</button>
+    </div>
+  </div>
+);
+
 const App: React.FC = () => {
-  const [users, setUsers] = useState<User[]>(() => {
-    const saved = localStorage.getItem('ad_users');
-    return saved ? JSON.parse(saved) : [];
-  });
-  
-  const [currentUser, setCurrentUser] = useState<User | null>(() => {
-    const saved = localStorage.getItem('ad_current_user');
-    return saved ? JSON.parse(saved) : null;
-  });
+  const [hasError, setHasError] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
 
-  const [isAdmin, setIsAdmin] = useState<boolean>(() => {
-    return localStorage.getItem('ad_is_admin') === 'true';
-  });
+  // Load state from localStorage with safe parsing
+  const getSafeData = useCallback((key: string, defaultValue: any) => {
+    try {
+      const saved = localStorage.getItem(key);
+      return saved ? JSON.parse(saved) : defaultValue;
+    } catch (e) {
+      console.error(`Error loading ${key}`, e);
+      return defaultValue;
+    }
+  }, []);
 
-  const [config, setConfig] = useState<AppConfig>(() => {
-    const saved = localStorage.getItem('ad_config');
-    return saved ? JSON.parse(saved) : INITIAL_CONFIG;
-  });
-
-  const [priceList, setPriceList] = useState<Medicine[]>(() => {
-    const saved = localStorage.getItem('ad_price_list');
-    return saved ? JSON.parse(saved) : [];
-  });
-
-  const [orders, setOrders] = useState<Order[]>(() => {
-    const saved = localStorage.getItem('ad_orders');
-    return saved ? JSON.parse(saved) : [];
-  });
-
-  const [messages, setMessages] = useState<Message[]>(() => {
-    const saved = localStorage.getItem('ad_messages');
-    return saved ? JSON.parse(saved) : [];
-  });
-
-  const [notifications, setNotifications] = useState<AppNotification[]>(() => {
-    const saved = localStorage.getItem('ad_notifications');
-    return saved ? JSON.parse(saved) : [];
-  });
-
+  const [users, setUsers] = useState<User[]>(() => getSafeData('ad_users', []));
+  const [currentUser, setCurrentUser] = useState<User | null>(() => getSafeData('ad_current_user', null));
+  const [isAdmin, setIsAdmin] = useState<boolean>(() => localStorage.getItem('ad_is_admin') === 'true');
+  const [config, setConfig] = useState<AppConfig>(() => getSafeData('ad_config', INITIAL_CONFIG));
+  const [priceList, setPriceList] = useState<Medicine[]>(() => getSafeData('ad_price_list', []));
+  const [orders, setOrders] = useState<Order[]>(() => getSafeData('ad_orders', []));
+  const [messages, setMessages] = useState<Message[]>(() => getSafeData('ad_messages', []));
+  const [notifications, setNotifications] = useState<AppNotification[]>(() => getSafeData('ad_notifications', []));
   const [toast, setToast] = useState<string | null>(null);
 
+  // Effect to save data and handle loading state
   useEffect(() => {
-    localStorage.setItem('ad_users', JSON.stringify(users));
-    localStorage.setItem('ad_current_user', JSON.stringify(currentUser));
-    localStorage.setItem('ad_is_admin', isAdmin.toString());
-    localStorage.setItem('ad_config', JSON.stringify(config));
-    localStorage.setItem('ad_price_list', JSON.stringify(priceList));
-    localStorage.setItem('ad_orders', JSON.stringify(orders));
-    localStorage.setItem('ad_messages', JSON.stringify(messages));
-    localStorage.setItem('ad_notifications', JSON.stringify(notifications));
+    try {
+      localStorage.setItem('ad_users', JSON.stringify(users));
+      localStorage.setItem('ad_current_user', JSON.stringify(currentUser));
+      localStorage.setItem('ad_is_admin', isAdmin.toString());
+      localStorage.setItem('ad_config', JSON.stringify(config));
+      localStorage.setItem('ad_price_list', JSON.stringify(priceList));
+      localStorage.setItem('ad_orders', JSON.stringify(orders));
+      localStorage.setItem('ad_messages', JSON.stringify(messages));
+      localStorage.setItem('ad_notifications', JSON.stringify(notifications));
+      setIsLoading(false);
+    } catch (e) {
+      console.error("Critical: Failed to sync to storage", e);
+      setHasError(true);
+    }
   }, [users, currentUser, isAdmin, config, priceList, orders, messages, notifications]);
 
   const addNotification = (to: string | 'admin', message: string) => {
@@ -100,9 +103,11 @@ const App: React.FC = () => {
     localStorage.removeItem('ad_is_admin');
   };
 
+  if (hasError) return <ErrorFallback />;
+  if (isLoading) return <div className="min-h-screen flex items-center justify-center bg-white"><RefreshCw className="animate-spin text-blue-600" size={40} /></div>;
+
   return (
     <HashRouter>
-      {/* Dynamic Toast Notification UI */}
       {toast && (
         <div className="fixed top-6 right-6 left-6 md:left-auto md:w-96 z-[200] animate-in slide-in-from-right-10 fade-in duration-500">
           <div className="bg-slate-900 text-white p-6 rounded-[30px] shadow-2xl flex items-center justify-between border border-white/10 backdrop-blur-xl bg-opacity-95">
@@ -165,6 +170,7 @@ const App: React.FC = () => {
             <Navigate to="/login" />
           )
         } />
+        <Route path="*" element={<Navigate to="/" />} />
       </Routes>
     </HashRouter>
   );

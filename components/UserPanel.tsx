@@ -8,11 +8,16 @@ import {
   MessageCircle, FileText, Camera, Printer, Trash2, 
   LogOut, Clock, XCircle, LayoutDashboard, Plus, ChevronRight, 
   Settings as SettingsIcon, Package, BadgeDollarSign, Heart, ShieldCheck, HelpCircle, Crop, ShoppingCart, Download, QrCode, MapPin, PhoneCall, Bell, Minus, ShoppingBasket,
-  RefreshCw, CheckCircle2, Save, X, PlusCircle, Check, ListPlus, UploadCloud, UserPlus, Fingerprint, AlertTriangle, Stethoscope, HandHeart, Sparkles, ClipboardList, Image as ImageIcon
+  RefreshCw, CheckCircle2, Save, X, PlusCircle, Check, ListPlus, UploadCloud, UserPlus, Fingerprint, AlertTriangle, Stethoscope, HandHeart, Sparkles, ClipboardList, Image as ImageIcon, Mail
 } from 'lucide-react';
 import ImageCropper from './ImageCropper';
-import { jsPDF } from 'jspdf';
-import html2canvas from 'html2canvas';
+
+// Dynamic imports to prevent build errors and blank screen on Vercel
+const loadPDFLib = async () => {
+  const { jsPDF } = await import('jspdf');
+  const html2canvas = (await import('html2canvas')).default;
+  return { jsPDF, html2canvas };
+};
 
 interface UserPanelProps {
   user: User;
@@ -69,8 +74,10 @@ const UserPanel: React.FC<UserPanelProps> = ({ user, setUser, config, logout, pr
   const [chatText, setChatText] = useState('');
 
   const [prescriptions, setPrescriptions] = useState<Prescription[]>(() => {
-    const saved = localStorage.getItem(`pres_${user.id}`);
-    return saved ? JSON.parse(saved) : [];
+    try {
+      const saved = localStorage.getItem(`pres_${user.id}`);
+      return saved ? JSON.parse(saved) : [];
+    } catch { return []; }
   });
   const [currentPrescription, setCurrentPrescription] = useState<Prescription | null>(null);
 
@@ -183,11 +190,17 @@ const UserPanel: React.FC<UserPanelProps> = ({ user, setUser, config, logout, pr
     const element = memoRefs.current[orderId];
     if (!element) return;
     setIsProcessing(true);
-    const canvas = await html2canvas(element, { scale: 3 });
-    const imgData = canvas.toDataURL('image/png');
-    const pdf = new jsPDF('p', 'mm', 'a4');
-    pdf.addImage(imgData, 'PNG', 10, 10, 140, (canvas.height * 140) / canvas.width);
-    pdf.save(`Memo_${orderId.slice(-6)}.pdf`);
+    try {
+      const { jsPDF, html2canvas } = await loadPDFLib();
+      const canvas = await html2canvas(element, { scale: 3 });
+      const imgData = canvas.toDataURL('image/png');
+      const pdf = new jsPDF('p', 'mm', 'a4');
+      pdf.addImage(imgData, 'PNG', 10, 10, 140, (canvas.height * 140) / canvas.width);
+      pdf.save(`Memo_${orderId.slice(-6)}.pdf`);
+    } catch (err) {
+      console.error(err);
+      alert('PDF ডাউনলোড করতে সমস্যা হয়েছে।');
+    }
     setIsProcessing(false);
   };
 
@@ -195,6 +208,7 @@ const UserPanel: React.FC<UserPanelProps> = ({ user, setUser, config, logout, pr
     if (!prescriptionRef.current) return;
     setIsProcessing(true);
     try {
+      const { jsPDF, html2canvas } = await loadPDFLib();
       const element = prescriptionRef.current;
       const canvas = await html2canvas(element, { 
         scale: 2, 
@@ -349,7 +363,6 @@ const UserPanel: React.FC<UserPanelProps> = ({ user, setUser, config, logout, pr
         <main className="flex-1 overflow-y-auto custom-scrollbar p-4 md:p-12 pb-12 bg-[#fcfdfe]">
           {activeTab === 'home' && (
             <div className="max-w-6xl mx-auto space-y-12 animate-in fade-in duration-700">
-              {/* Dynamic Responsive Banner - Exactly as cropped */}
               {config.bannerImage && (
                 <div className="w-full rounded-[40px] overflow-hidden shadow-2xl relative group border-4 border-white transition-all bg-slate-100">
                   <img src={config.bannerImage} className="w-full h-auto block transition-transform duration-1000 group-hover:scale-105" alt="Banner" />
@@ -414,8 +427,14 @@ const UserPanel: React.FC<UserPanelProps> = ({ user, setUser, config, logout, pr
                     <p className="text-slate-400 font-bold max-w-sm">{config.homeFooter}</p>
                   </div>
                 </div>
-                <div className="bg-slate-50 p-6 rounded-[30px] flex flex-col md:flex-row justify-between items-center gap-4">
-                  <p className="text-xs font-black text-slate-400 uppercase tracking-widest">© ২০২৬ আমার ডাক্তার (Roman Tech Studio) - সর্বস্বত্ব সংরক্ষিত</p>
+                <div className="bg-slate-50 p-8 rounded-[40px] flex flex-col md:flex-row justify-between items-center gap-6 border border-slate-100">
+                  <div className="flex flex-col items-center md:items-start gap-1">
+                    <p className="text-xs font-black text-slate-600 uppercase tracking-widest">Made by Rimon Mahmud Roman</p>
+                    <div className="flex flex-wrap justify-center md:justify-start gap-4 text-[10px] font-bold text-slate-400 uppercase tracking-tight">
+                      <span className="flex items-center gap-1.5"><PhoneCall size={12} className="text-blue-500" /> 01617365471</span>
+                      <span className="flex items-center gap-1.5"><Mail size={12} className="text-blue-500" /> romantechgp@gmail.com</span>
+                    </div>
+                  </div>
                   <div className="flex gap-6">
                     <button className="text-[10px] font-black text-slate-400 uppercase hover:text-slate-600 transition-colors">প্রাইভেসি পলিসি</button>
                     <button className="text-[10px] font-black text-slate-400 uppercase hover:text-slate-600 transition-colors">টার্মস অফ ইউজ</button>
@@ -424,7 +443,6 @@ const UserPanel: React.FC<UserPanelProps> = ({ user, setUser, config, logout, pr
               </footer>
             </div>
           )}
-
           {activeTab === 'profile' && (
             <div className="max-w-4xl mx-auto space-y-10 animate-in fade-in duration-500">
               <div className="bg-white p-12 rounded-[50px] shadow-2xl border border-slate-100 relative">
@@ -459,7 +477,6 @@ const UserPanel: React.FC<UserPanelProps> = ({ user, setUser, config, logout, pr
               </div>
             </div>
           )}
-
           {activeTab === 'intake' && (
             <div className="max-w-4xl mx-auto space-y-12 animate-in slide-in-from-bottom-10 duration-500 pb-20">
               <div className="bg-white p-10 md:p-14 rounded-[50px] shadow-2xl border border-slate-100 relative overflow-hidden">
@@ -467,7 +484,6 @@ const UserPanel: React.FC<UserPanelProps> = ({ user, setUser, config, logout, pr
                 <h3 className="text-3xl font-black mb-12 flex items-center gap-4 text-slate-800"><Activity className="text-primary" size={32} style={{color: 'var(--primary)'}} /> নতুন প্রেসক্রিপশন ইনপুট</h3>
                 
                 <div className="space-y-12">
-                  {/* Section 1: Basic Info */}
                   <div className="space-y-6 p-8 bg-slate-50 rounded-[40px] border border-slate-100">
                     <h4 className="text-sm font-black text-slate-400 uppercase flex items-center gap-2 tracking-widest"><UserPlus size={18} /> সাধারণ তথ্য</h4>
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -476,15 +492,11 @@ const UserPanel: React.FC<UserPanelProps> = ({ user, setUser, config, logout, pr
                       <div className="space-y-2"><label className="text-xs font-bold text-slate-500">লিঙ্গ</label><select className="w-full p-5 bg-white rounded-2xl border border-slate-100 font-bold" value={intake.gender} onChange={e => setIntake({ ...intake, gender: e.target.value })}><option value="পুরুষ">পুরুষ</option><option value="মহিলা">মহিলা</option><option value="অন্যান্য">অন্যান্য</option></select></div>
                     </div>
                   </div>
-
-                  {/* Section 2: Symptoms */}
                   <div className="space-y-6">
                     <h4 className="text-sm font-black text-slate-400 uppercase flex items-center gap-2 tracking-widest"><Fingerprint size={18} /> লক্ষণসমূহ (সিলেক্ট করুন)</h4>
                     <div className="flex flex-wrap gap-2">{DEFAULT_SYMPTOMS.map(s => <button key={s} onClick={() => setIntake({ ...intake, symptoms: intake.symptoms.includes(s) ? intake.symptoms.filter(x => x !== s) : [...intake.symptoms, s] })} className={`px-4 py-3 rounded-xl text-sm font-bold border transition-all ${intake.symptoms.includes(s) ? 'bg-primary text-white border-primary shadow-md' : 'bg-white text-slate-500 border-slate-100 hover:border-primary/30'}`} style={intake.symptoms.includes(s) ? { backgroundColor: 'var(--primary)' } : {}}>{s}</button>)}</div>
                     <textarea rows={2} className="w-full p-5 bg-slate-50 rounded-2xl border border-slate-100 font-bold" placeholder="বিস্তারিত লক্ষণ বা অন্য কোনো সমস্যা থাকলে লিখুন..." value={intake.customSymptoms} onChange={e => setIntake({ ...intake, customSymptoms: e.target.value })} />
                   </div>
-
-                  {/* Section 3: Previous Diseases */}
                   <div className="space-y-6">
                     <h4 className="text-sm font-black text-slate-400 uppercase flex items-center gap-2 tracking-widest"><AlertTriangle size={18} /> পূর্বের কোনো রোগ থাকলে সিলেক্ট করুন</h4>
                     <div className="flex flex-wrap gap-2">{DEFAULT_DISEASES.map(d => <button key={d} onClick={() => setIntake({ ...intake, diseases: intake.diseases.includes(d) ? intake.diseases.filter(x => x !== d) : [...intake.diseases, d] })} className={`px-4 py-3 rounded-xl text-sm font-bold border transition-all ${intake.diseases.includes(d) ? 'bg-rose-500 text-white border-rose-500 shadow-md' : 'bg-white text-slate-500 border-slate-100 hover:border-rose-300'}`}>{d}</button>)}</div>
@@ -493,14 +505,10 @@ const UserPanel: React.FC<UserPanelProps> = ({ user, setUser, config, logout, pr
                       <div className="space-y-2"><label className="text-xs font-bold text-slate-500">আগে ব্যবহার করা ঔষধের নাম</label><input className="w-full p-5 bg-slate-50 rounded-2xl border border-slate-100 font-bold" placeholder="উদা: Napa, Sergel" value={intake.pastMedicines} onChange={e => setIntake({ ...intake, pastMedicines: e.target.value })} /></div>
                     </div>
                   </div>
-
-                  {/* Section 4: Vitals (BP/Diabetes) */}
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-8 p-8 bg-slate-50 rounded-[40px] border border-slate-100">
                     <div className="space-y-2"><label className="text-xs font-black text-slate-500 uppercase tracking-widest">রক্তচাপ (BP)</label><input className="w-full p-5 bg-white rounded-2xl border border-slate-100 font-bold" placeholder="উদা: 120/80" value={intake.bp} onChange={e => setIntake({ ...intake, bp: e.target.value })} /></div>
                     <div className="space-y-2"><label className="text-xs font-black text-slate-500 uppercase tracking-widest">ডায়াবেটিস (Blood Sugar)</label><input className="w-full p-5 bg-white rounded-2xl border border-slate-100 font-bold" placeholder="উদা: 6.5 mmol/L" value={intake.diabetes} onChange={e => setIntake({ ...intake, diabetes: e.target.value })} /></div>
                   </div>
-
-                  {/* Section 5: Tests & Reports */}
                   <div className="space-y-6">
                     <h4 className="text-sm font-black text-slate-400 uppercase flex items-center gap-2 tracking-widest"><ClipboardList size={18} /> করা কোনো টেস্ট থাকলে সিলেক্ট করুন</h4>
                     <div className="flex flex-wrap gap-2">{DEFAULT_TESTS.map(t => <button key={t} onClick={() => setIntake({ ...intake, selectedTests: intake.selectedTests.includes(t) ? intake.selectedTests.filter(x => x !== t) : [...intake.selectedTests, t] })} className={`px-4 py-3 rounded-xl text-sm font-bold border transition-all ${intake.selectedTests.includes(t) ? 'bg-indigo-500 text-white border-indigo-500 shadow-md' : 'bg-white text-slate-500 border-slate-100 hover:border-indigo-300'}`}>{t}</button>)}</div>
@@ -535,208 +543,8 @@ const UserPanel: React.FC<UserPanelProps> = ({ user, setUser, config, logout, pr
               </div>
             </div>
           )}
-
-          {activeTab === 'history' && (
-            <div className="max-w-6xl mx-auto flex flex-col lg:flex-row gap-10 animate-in fade-in duration-500">
-              <div className="lg:w-80 space-y-4 no-print">
-                <h3 className="text-xl font-black text-slate-800 mb-6 flex items-center gap-2"><Clock className="text-primary" style={{color: 'var(--primary)'}} /> প্রেসক্রিপশন ইতিহাস</h3>
-                {prescriptions.map((p, idx) => (
-                  <button key={p.id} onClick={() => setCurrentPrescription(p)} className={`w-full p-6 rounded-[32px] text-left border-2 transition-all flex justify-between items-center group ${currentPrescription?.id === p.id ? 'bg-primary border-primary text-white shadow-xl' : 'bg-white border-slate-50'}`} style={currentPrescription?.id === p.id ? { backgroundColor: 'var(--primary)', borderColor: 'var(--primary)' } : {}}>
-                    <div><p className="font-black">রেকর্ড #{idx + 1}</p><p className="text-xs mt-1 opacity-70">{p.date}</p></div>
-                    <ChevronRight className="group-hover:translate-x-1 transition-transform" />
-                  </button>
-                ))}
-              </div>
-              <div className="flex-1 min-h-[1000px] no-print">
-                {currentPrescription ? (
-                  <div className="space-y-6">
-                    <div ref={prescriptionRef} className="bg-white p-6 md:p-8 shadow-2xl rounded-lg border border-slate-100 flex flex-col overflow-hidden" style={{ width: '210mm', minHeight: '297mm', height: '297mm', margin: '0 auto', boxSizing: 'border-box' }}>
-                      <div className="flex justify-between items-center border-b-2 pb-4 mb-4" style={{ borderColor: prescriptionThemeColor }}>
-                        <div className="flex items-center gap-4">
-                          <div className="w-16 h-16 bg-primary/10 rounded-xl flex items-center justify-center" style={{color: prescriptionThemeColor}}><Stethoscope size={36} /></div>
-                          <div className="text-left">
-                            <h1 className="text-2xl font-black uppercase tracking-tight leading-none mb-1" style={{ color: prescriptionThemeColor }}>{config.prescriptionHeader}</h1>
-                            <p className="text-slate-400 font-bold text-[10px] uppercase tracking-widest">{config.prescriptionFooter}</p>
-                          </div>
-                        </div>
-                        <div className="text-right">
-                          <h2 className="text-xl font-black text-slate-800">{config.doctorDetails.name}</h2>
-                          <p className="text-[11px] font-bold text-slate-500 leading-tight">{config.doctorDetails.degree}</p>
-                          <p className="text-[11px] font-bold text-slate-500 leading-tight">{config.doctorDetails.specialty}</p>
-                          <p className="text-[9px] font-black text-slate-400 mt-1 uppercase tracking-widest">রেজি: {config.doctorDetails.regNo}</p>
-                        </div>
-                      </div>
-                      <div className="grid grid-cols-4 gap-4 mb-6 bg-slate-50/50 p-4 rounded-2xl border border-slate-100">
-                        <div className="col-span-2"><p className="text-[8px] font-black text-slate-400 uppercase mb-0.5">রোগীর নাম</p><p className="font-black text-slate-800 text-lg leading-none">{currentPrescription.patientName}</p></div>
-                        <div><p className="text-[8px] font-black text-slate-400 uppercase mb-0.5">বয়স / লিঙ্গ</p><p className="font-bold text-slate-700 text-sm">{currentPrescription.age} / {currentPrescription.gender}</p></div>
-                        <div className="text-right"><p className="text-[8px] font-black text-slate-400 uppercase mb-0.5">তারিখ</p><p className="font-bold text-slate-700 text-sm">{currentPrescription.date}</p></div>
-                      </div>
-                      <div className="flex gap-8 flex-1">
-                        <div className="w-[28%] border-r pr-4 space-y-6">
-                          <div className="space-y-2"><h4 className="text-[10px] font-black uppercase tracking-widest px-2 py-0.5 bg-slate-100 rounded inline-block" style={{ color: prescriptionThemeColor }}>নির্ণীত রোগ</h4><p className="font-black text-slate-800 text-base leading-snug">{currentPrescription.diagnosis}</p></div>
-                          <div className="space-y-2"><h4 className="text-[10px] font-black uppercase tracking-widest text-slate-400">লক্ষণসমূহ</h4><div className="space-y-1">{currentPrescription.symptoms.map((s, i) => <p key={i} className="text-xs font-bold text-slate-600 leading-tight">• {s}</p>)}</div></div>
-                        </div>
-                        <div className="flex-1 flex flex-col">
-                          <div className="flex items-center gap-4 mb-6"><span className="text-4xl font-black opacity-10 italic" style={{ color: prescriptionThemeColor }}>Rx</span><div className="h-px flex-1 bg-slate-100"></div></div>
-                          <div className="space-y-6 flex-1">
-                            {currentPrescription.medicines.map((m, i) => (
-                              <div key={i} className="relative">
-                                <div className="flex justify-between items-start mb-1">
-                                  <div><h5 className="font-black text-lg text-slate-800 leading-tight">{m.nameEn} <span className="text-slate-400 text-sm font-bold">({m.nameBn})</span></h5><p className="text-[10px] font-black text-slate-400 italic">{m.generic}</p></div>
-                                  <span className="px-3 py-1 bg-slate-50 border rounded-lg text-[10px] font-black text-slate-600">{m.dosage}</span>
-                                </div>
-                                <p className="text-[11px] font-bold text-slate-500 leading-tight">{m.purpose}</p>
-                              </div>
-                            ))}
-                          </div>
-                          <div className="mt-8 pt-4 border-t-2 border-slate-50 space-y-4">
-                            <div><h4 className="text-[10px] font-black uppercase text-slate-400 mb-1 flex items-center gap-2"><Heart size={12} className="text-rose-500" /> পরামর্শ</h4><p className="text-xs font-bold text-slate-700 leading-normal italic">"{currentPrescription.advice}"</p></div>
-                            {currentPrescription.precautions && <div className="bg-rose-50 p-3 rounded-xl border border-rose-100"><h4 className="text-[10px] font-black uppercase text-rose-600 mb-0.5 flex items-center gap-2"><AlertTriangle size={12} /> সতর্কবার্তা</h4><p className="text-[11px] font-black text-rose-700 leading-tight">{currentPrescription.precautions}</p></div>}
-                          </div>
-                        </div>
-                      </div>
-                      <div className="mt-8 flex justify-end">
-                        <div className="text-center w-52 border-t pt-2" style={{ borderColor: prescriptionThemeColor + '22' }}>
-                          {config.digitalSignature ? <img src={config.digitalSignature} className="max-h-12 mx-auto mb-1 mix-blend-multiply" /> : <div className="h-12 mb-1"></div>}
-                          <p className="text-[10px] font-black text-slate-800 uppercase tracking-widest">{config.doctorDetails.name}</p>
-                        </div>
-                      </div>
-                    </div>
-                    <div className="flex gap-4 justify-center py-10" id="pres-actions">
-                      <button disabled={isProcessing} onClick={downloadPrescriptionPDF} className="bg-slate-900 text-white px-8 py-4 rounded-3xl font-black text-lg flex items-center gap-3 shadow-xl hover:scale-105 transition-all">{isProcessing ? <RefreshCw className="animate-spin" /> : <Download />} PDF ডাউনলোড</button>
-                      <button onClick={() => window.print()} className="bg-white text-slate-800 border-2 px-8 py-4 rounded-3xl font-black text-lg flex items-center gap-3 shadow hover:bg-slate-50 transition-all"><Printer /> প্রিন্ট</button>
-                    </div>
-                  </div>
-                ) : <div className="h-full flex flex-col items-center justify-center opacity-20 py-40"><FileText size={100} /><p className="text-2xl font-black mt-6">সিলেক্ট করুন</p></div>}
-              </div>
-            </div>
-          )}
-
-          {activeTab === 'search' && (
-            <div className="max-w-5xl mx-auto space-y-10 animate-in fade-in duration-500">
-              <div className="glass p-10 rounded-[40px] shadow-2xl border border-white">
-                <h3 className="text-2xl font-black mb-8 text-slate-800">বিকল্প ঔষধ ও বাজারমূল্য সন্ধান</h3>
-                <div className="flex flex-col md:flex-row gap-6 mb-8">
-                  <select className="p-5 bg-white border border-slate-100 rounded-3xl font-bold shadow-sm" value={searchType} onChange={e => setSearchType(e.target.value as any)}><option value="brand">ব্র্যান্ড দিয়ে সার্চ</option><option value="generic">জেনেরিক দিয়ে সার্চ</option></select>
-                  <div className="flex-1 relative">
-                    <input className="w-full p-5 pl-14 bg-white border border-slate-100 rounded-3xl font-bold shadow-sm" placeholder={searchType === 'brand' ? 'উদা: Napa' : 'উদা: Paracetamol'} value={searchQuery} onChange={e => setSearchQuery(e.target.value)} onKeyPress={e => e.key === 'Enter' && handleSearchMedicine()} />
-                    <Search className="absolute left-6 top-6 text-slate-300" size={20} />
-                  </div>
-                  <button disabled={isProcessing} onClick={() => handleSearchMedicine()} className="bg-primary text-white px-10 py-5 rounded-3xl font-black shadow-xl" style={{backgroundColor: 'var(--primary)'}}>{isProcessing ? <RefreshCw className="animate-spin" /> : 'খুঁজুন'}</button>
-                </div>
-              </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {searchResults.map((m, i) => (
-                  <div key={i} className="bg-white p-8 rounded-[40px] shadow-xl border border-slate-50 flex flex-col justify-between hover:scale-[1.02] transition-transform">
-                    <div>
-                      <div className="flex justify-between items-start mb-4">
-                        <div><h4 className="font-black text-2xl text-slate-800">{m.brandName}</h4><p className="text-sm font-bold text-slate-400">{m.genericName}</p></div>
-                        <div className="bg-primary/10 text-primary px-4 py-2 rounded-2xl font-black" style={{color: 'var(--primary)'}}>৳{m.price}</div>
-                      </div>
-                      <p className="text-xs font-black text-slate-400 uppercase mb-4">{m.company}</p>
-                    </div>
-                    <button onClick={() => addToDraftOrder(m)} className={`w-full py-4 rounded-2xl font-black transition-all flex items-center justify-center gap-2 ${addedItems.has(m.brandName) ? 'bg-emerald-600 text-white' : 'bg-slate-900 text-white hover:bg-primary'}`}>{addedItems.has(m.brandName) ? <Check size={18} /> : <PlusCircle size={18} />} কার্টে যোগ করুন</button>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {activeTab === 'priceList' && (
-            <div className="max-w-5xl mx-auto space-y-10 animate-in fade-in duration-500">
-              <div className="bg-white rounded-[40px] shadow-2xl overflow-hidden border border-slate-100">
-                <div className="p-10 bg-primary text-white flex flex-col sm:flex-row justify-between items-center gap-6" style={{ backgroundColor: 'var(--primary)' }}>
-                  <div><h3 className="text-3xl font-black">ঔষধের মূল্য তালিকা</h3><p className="text-white/70 font-bold mt-1 text-xs">বাজার মূল্য আপডেট দেখুন</p></div>
-                  <div className="relative w-full sm:w-80">
-                    <input className="w-full pl-12 pr-6 py-4 bg-white/20 border border-white/30 rounded-2xl text-white font-bold" placeholder="ঔষধ খুঁজুন..." value={priceSearch} onChange={e => setPriceSearch(e.target.value)} />
-                    <Search className="absolute left-4 top-4 text-white/50" size={20} />
-                  </div>
-                </div>
-                <div className="overflow-x-auto">
-                  <table className="w-full text-left">
-                    <thead className="bg-slate-50 text-xs font-black text-slate-400 uppercase tracking-widest"><tr><th className="px-10 py-6">ঔষধ</th><th className="px-10 py-6">জেনেরিক</th><th className="px-10 py-6">কোম্পানি</th><th className="px-10 py-6">মূল্য</th><th className="px-10 py-6 text-right">যোগ</th></tr></thead>
-                    <tbody className="divide-y divide-slate-50">
-                      {priceList.filter(p => p.brandName.toLowerCase().includes(priceSearch.toLowerCase())).map(p => (
-                        <tr key={p.id} className="hover:bg-slate-50/50 transition-colors">
-                          <td className="px-10 py-6 font-black text-slate-800 text-lg">{p.brandName}</td>
-                          <td className="px-10 py-6 text-slate-500 font-bold">{p.genericName}</td>
-                          <td className="px-10 py-6 text-slate-700 font-black">{p.company}</td>
-                          <td className="px-10 py-6 font-black text-primary text-xl" style={{ color: 'var(--primary)' }}>৳{p.price}</td>
-                          <td className="px-10 py-6 text-right"><button onClick={() => addToDraftOrder(p)} className={`p-4 rounded-2xl transition-all ${addedItems.has(p.brandName) ? 'bg-emerald-600 text-white' : 'bg-slate-100 hover:bg-primary hover:text-white'}`}>{addedItems.has(p.brandName) ? <Check size={20} /> : <Plus size={20} />}</button></td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {activeTab === 'medicineGuide' && (
-            <div className="max-w-4xl mx-auto space-y-10 animate-in slide-in-from-bottom-5 duration-500">
-              <div className="glass p-10 rounded-[40px] shadow-2xl border border-white">
-                <h3 className="text-2xl font-black mb-8 flex items-center gap-3"><HelpCircle className="text-primary" style={{color: 'var(--primary)'}} /> ঔষধের বিস্তারিত তথ্য</h3>
-                <div className="flex gap-4">
-                  <div className="flex-1 relative">
-                    <input className="w-full p-6 pl-14 bg-white border border-slate-100 rounded-[24px] font-bold shadow-sm" placeholder=" ঔষধের নাম লিখুন (উদা: Napa Extra)" value={medicineGuideQuery} onChange={e => setMedicineGuideQuery(e.target.value)} onKeyPress={e => e.key === 'Enter' && handleMedicineGuideSearch()} />
-                    <Search className="absolute left-6 top-6 text-slate-300" size={24} />
-                  </div>
-                  <button disabled={isProcessing} onClick={handleMedicineGuideSearch} className="bg-primary text-white px-10 rounded-[24px] font-black shadow-xl" style={{backgroundColor: 'var(--primary)'}}>{isProcessing ? <RefreshCw className="animate-spin" /> : 'সার্চ'}</button>
-                </div>
-                {medicineGuideResult && <div className="mt-10 p-8 bg-slate-50 rounded-[32px] border border-slate-100 animate-in fade-in"><div className="prose prose-slate max-w-none whitespace-pre-wrap font-bold text-slate-700 leading-relaxed">{medicineGuideResult}</div></div>}
-              </div>
-            </div>
-          )}
-
-          {activeTab === 'store' && (
-            <div className="max-w-7xl mx-auto space-y-12 animate-in slide-in-from-bottom-5 duration-500">
-              <div className="grid grid-cols-1 xl:grid-cols-3 gap-10">
-                <div className="xl:col-span-2 space-y-8">
-                  <div className="bg-white p-10 rounded-[50px] shadow-2xl border border-slate-100">
-                    <h4 className="text-2xl font-black mb-8 flex items-center gap-4 text-slate-800"><span className="w-10 h-10 bg-blue-600 text-white rounded-full flex items-center justify-center">১</span> ঔষধ যোগ করুন</h4>
-                    <div className="flex flex-col md:flex-row gap-4 mb-10">
-                      <div className="flex-1 space-y-2"><label className="text-[10px] font-black text-slate-400">নাম</label><input className="w-full p-5 bg-slate-50 rounded-2xl border font-bold" value={manualEntry.name} onChange={e => setManualEntry({ ...manualEntry, name: e.target.value })} /></div>
-                      <div className="w-32 space-y-2"><label className="text-[10px] font-black text-slate-400">পরিমাণ</label><input type="number" className="w-full p-5 bg-slate-50 rounded-2xl border font-bold text-center" value={manualEntry.quantity} onChange={e => setManualEntry({ ...manualEntry, quantity: e.target.value })} /></div>
-                      <div className="flex items-end pb-1"><button onClick={handleManualAdd} className="bg-blue-600 text-white px-8 py-5 rounded-2xl font-black shadow-lg"><Plus size={20} /></button></div>
-                    </div>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">{priceList.slice(0, 10).map((m, i) => (
-                        <div key={i} className="p-6 bg-slate-50 rounded-[35px] border border-slate-100 flex flex-col justify-between group hover:bg-white hover:shadow-xl transition-all border-b-4 hover:border-blue-600">
-                          <div className="mb-4"><div className="flex justify-between items-start"><p className="font-black text-slate-800 text-xl">{m.brandName}</p><span className="text-blue-600 font-black">৳{m.price}</span></div><p className="text-xs font-bold text-slate-400 mt-1">{m.genericName}</p></div>
-                          <button onClick={() => addToDraftOrder(m)} className={`w-full py-4 rounded-2xl flex items-center justify-center gap-2 font-black transition-all ${addedItems.has(m.brandName) ? 'bg-emerald-600 text-white' : 'bg-white text-blue-600 border-2 hover:bg-blue-600 hover:text-white'}`}>{addedItems.has(m.brandName) ? 'যোগ হয়েছে' : 'কার্টে যোগ'}</button>
-                        </div>
-                      ))}</div>
-                  </div>
-                  <div className="space-y-8"><h3 className="text-2xl font-black text-slate-800 border-l-8 border-blue-600 pl-6">আপনার অর্ডার ইতিহাস</h3><div className="grid grid-cols-1 md:grid-cols-2 gap-8">{orders.filter(o => o.userId === user.id).map(order => (<div key={order.id} className="bg-white p-8 rounded-[50px] shadow-xl border border-slate-100 group transition-all"><div className="flex justify-between items-start mb-6"><div><p className="text-[10px] font-black text-slate-400">#{order.id.slice(-6)}</p><p className="font-black text-slate-800">{new Date(order.timestamp).toLocaleDateString('bn-BD')}</p></div><span className={`px-4 py-1.5 rounded-full text-[10px] font-black ${order.status === 'pending' ? 'bg-amber-100 text-amber-600' : 'bg-emerald-100 text-emerald-600'}`}>{order.status === 'pending' ? 'পেন্ডিং' : 'প্রসেসড'}</span></div><button onClick={() => setSelectedOrder(order)} className="w-full py-4 bg-slate-900 text-white rounded-2xl font-black">বিস্তারিত দেখুন</button></div>))}</div></div>
-                </div>
-                <div className="space-y-10">
-                  <div className="bg-white p-10 rounded-[50px] shadow-2xl border border-slate-100 sticky top-10">
-                    <h4 className="text-2xl font-black mb-8 flex items-center gap-4 text-slate-800"><span className="w-10 h-10 bg-blue-600 text-white rounded-full flex items-center justify-center">২</span> আপনার কার্ট</h4>
-                    <div className="space-y-4 mb-10 max-h-[300px] overflow-y-auto custom-scrollbar pr-2">{draftOrderItems.map((item, i) => (<div key={i} className="flex justify-between items-center p-5 bg-slate-50 rounded-[30px] border border-slate-100 group"><div className="flex-1"><p className="font-black text-slate-800 text-lg">{item.medicineName}</p><div className="flex items-center gap-3 mt-2"><button onClick={() => updateQuantity(i, -1)} className="w-8 h-8 bg-white border rounded-xl flex items-center justify-center"><Minus size={14} /></button><span className="font-black text-slate-700">{item.quantity}</span><button onClick={() => updateQuantity(i, 1)} className="w-8 h-8 bg-white border rounded-xl flex items-center justify-center"><Plus size={14} /></button></div></div><div className="text-right"><p className="font-black text-blue-600 mb-2">৳{parseFloat(item.pricePerUnit) * parseFloat(item.quantity)}</p><button onClick={() => removeDraftItem(i)} className="p-3 text-rose-400"><Trash2 size={18} /></button></div></div>))}</div>
-                    <div className="pt-8 border-t border-slate-100"><h4 className="text-xl font-black mb-6 flex items-center gap-4 text-slate-800"><span className="w-10 h-10 bg-blue-600 text-white rounded-full flex items-center justify-center">৩</span> শিপিং তথ্য</h4>
-                      <form onSubmit={handleFinalOrder} className="space-y-5">
-                        <div className="space-y-2"><label className="text-[10px] font-black text-slate-400">ঠিকানা</label><textarea required rows={3} className="w-full p-5 bg-slate-50 rounded-2xl border font-bold" value={orderFormMeta.address} onChange={e => setOrderFormMeta({...orderFormMeta, address: e.target.value})} /></div>
-                        <button type="submit" disabled={!draftOrderItems.length} className="w-full bg-blue-600 text-white py-6 rounded-[30px] font-black text-xl shadow-2xl hover:scale-105 active:scale-95 transition-all">অর্ডার কনফার্ম করুন</button>
-                      </form>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {activeTab === 'messages' && (
-            <div className="max-w-4xl mx-auto h-[600px] flex flex-col bg-white rounded-[50px] shadow-2xl border border-slate-100 overflow-hidden animate-in fade-in duration-500">
-              <div className="p-8 bg-primary text-white flex items-center gap-4" style={{ backgroundColor: 'var(--primary)' }}><div className="w-14 h-14 bg-white/20 rounded-2xl flex items-center justify-center"><ShieldCheck size={32} /></div><div><h3 className="text-2xl font-black">সাপোর্ট চ্যাট</h3><p className="text-xs font-black opacity-70">এডমিনকে সরাসরি মেসেজ দিন</p></div></div>
-              <div className="flex-1 overflow-y-auto p-10 space-y-6 bg-slate-50/50 custom-scrollbar">{messages.filter(m => m.senderId === user.id || m.receiverId === user.id).map(m => (<div key={m.id} className={`flex ${m.senderId === user.id ? 'justify-end' : 'justify-start'}`}><div className={`max-w-[75%] p-5 rounded-[24px] font-bold text-sm shadow-sm ${m.senderId === user.id ? 'bg-primary text-white rounded-tr-none' : 'bg-white text-slate-700 rounded-tl-none border border-slate-100'}`} style={m.senderId === user.id ? { backgroundColor: 'var(--primary)' } : {}}>{m.text}<div className="text-[9px] mt-2 opacity-50 text-right">{new Date(m.timestamp).toLocaleTimeString('bn-BD')}</div></div></div>))}<div ref={chatEndRef} /></div>
-              <div className="p-6 bg-white border-t flex gap-4"><input className="flex-1 p-5 bg-slate-50 rounded-[20px] outline-none font-bold border border-slate-100" placeholder="আপনার প্রশ্নটি লিখুন..." value={chatText} onChange={e => setChatText(e.target.value)} onKeyPress={e => e.key === 'Enter' && handleSendMessage()} /><button onClick={handleSendMessage} className="bg-primary text-white px-10 rounded-[20px] font-black shadow-lg" style={{ backgroundColor: 'var(--primary)' }}>পাঠান</button></div>
-            </div>
-          )}
         </main>
       </div>
-
-      {selectedOrder && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm"><div className="bg-white w-full max-w-lg rounded-[30px] shadow-2xl overflow-hidden flex flex-col"><div className="px-6 py-4 border-b flex justify-between items-center bg-slate-50"><h3 className="text-lg font-black">অর্ডার ইনভয়েস</h3><button onClick={() => setSelectedOrder(null)} className="p-2 hover:bg-slate-100 rounded-xl"><X size={18} /></button></div><div className="flex-1 overflow-y-auto p-6 custom-scrollbar"><div ref={el => memoRefs.current[selectedOrder.id] = el} className="bg-white border p-6 rounded-2xl space-y-4"><div className="flex justify-between items-start border-b pb-4"><div><h4 className="text-lg font-black text-blue-600 uppercase">Amar Doctor Shop</h4><p className="text-[8px] font-bold text-slate-500 mt-2">ID: #{selectedOrder.id.slice(-6)}</p></div><img src={`https://api.qrserver.com/v1/create-qr-code/?size=60x60&data=${selectedOrder.id}`} className="w-12 h-12" /></div><div className="grid grid-cols-2 gap-2 text-[10px] font-bold bg-slate-50 p-3 rounded-xl"><div><span className="text-slate-400 text-[8px] block uppercase">নাম</span>{selectedOrder.userName}</div><div><span className="text-slate-400 text-[8px] block uppercase">ঠিকানা</span>{selectedOrder.address}</div></div><table className="w-full text-xs"><thead className="border-b text-[10px] text-slate-400 uppercase"><tr><th className="pb-2 text-left">ঔষধ</th><th className="pb-2 text-center">পরিমান</th><th className="pb-2 text-right">মূল্য</th></tr></thead><tbody>{selectedOrder.items.map((it, idx) => (<tr key={idx} className="text-slate-700 font-bold"><td className="py-2">{it.medicineName}</td><td className="py-2 text-center">{it.quantity}</td><td className="py-2 text-right">৳{parseFloat(it.pricePerUnit) * parseFloat(it.quantity)}</td></tr>))}</tbody><tfoot className="border-t"><tr><td colSpan={2} className="pt-3 text-[10px] font-black uppercase">মোট:</td><td className="pt-3 text-right text-lg font-black text-blue-600">৳{selectedOrder.totalPrice}</td></tr></tfoot></table>{selectedOrder.adminReply && <div className="p-3 bg-blue-50/50 rounded-xl border-l-4 border-blue-600"><p className="text-[8px] font-black text-blue-600 uppercase mb-0.5">রিপ্লাই:</p><p className="text-[10px] font-bold text-slate-700">{selectedOrder.adminReply}</p></div>}</div></div><div className="px-6 py-4 bg-slate-50 flex gap-3"><button onClick={() => downloadPDF(selectedOrder.id)} disabled={selectedOrder.status === 'pending' || isProcessing} className="flex-1 py-3 bg-slate-900 text-white rounded-xl font-black flex items-center justify-center gap-2">{isProcessing ? <RefreshCw className="animate-spin" /> : <Download />} ডাউনলোড</button></div></div></div>
-      )}
     </div>
   );
 };
