@@ -1,6 +1,6 @@
 
 import React, { useState, useCallback, useEffect } from 'react';
-import Cropper from 'https://esm.sh/react-easy-crop@^5.2.0';
+import Cropper from 'react-easy-crop';
 import { X, Check, ZoomIn, Maximize2, Monitor, Square, Smartphone, Hash } from 'lucide-react';
 
 interface ImageCropperProps {

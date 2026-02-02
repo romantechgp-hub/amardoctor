@@ -8,20 +8,20 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Hind+Siliguri:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <script>
-        // Critical shim for libraries expecting Node environment
+        // Polyfill for process and environment
         window.process = { 
             env: { NODE_ENV: 'production' },
             cwd: () => '/',
             browser: true
         };
         
-        // Suppress or handle node-domexception if it appears in browser
+        // Handle potential missing DOMException in older environments
         if (typeof DOMException === 'undefined') {
             window.DOMException = Error;
         }
 
         window.onerror = function(message, source, lineno, colno, error) {
-            console.error('App Error:', message, 'at', source, ':', lineno);
+            console.error('Runtime Error:', message, 'at', source, ':', lineno);
         };
     </script>
     <style>
